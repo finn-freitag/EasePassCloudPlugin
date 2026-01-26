@@ -14,7 +14,19 @@ namespace EasePassCloudPlugin
         private AccessMetadata? Metadata;
         private DateTime LastMetadataFetch = DateTime.MinValue;
 
-        public string DatabaseName => Metadata != null ? Metadata.DatabaseName + " (Cloud)" : "unknown (Cloud)";
+        public string DatabaseName
+        {
+            get
+            {
+                if(Metadata != null)
+                    return Metadata.DatabaseName + " (Cloud)";
+                string hash = HashString(AccessToken);
+                string name = ConfigurationStorage.Instance.LoadString(hash);
+                if (!string.IsNullOrEmpty(name))
+                    return name + " (Offline Cloudcopy)";
+                return "unknown (Cloud)";
+            }
+        }
 
         public string SourceDescription => Host + "/api/databases/" + HashString(DatabaseName);
 
@@ -25,10 +37,14 @@ namespace EasePassCloudPlugin
         {
             get
             {
+                byte[] file = ConfigurationStorage.Instance.LoadFile(HashString(AccessToken));
                 if (Metadata == null)
+                {
+                    if (file != null)
+                        return IDatabaseSource.DatabaseAvailability.Available;
                     return IDatabaseSource.DatabaseAvailability.Unavailable;
-                if (Metadata.Locked)
-                    return IDatabaseSource.DatabaseAvailability.LockedByOtherUser;
+                }
+                // Ignore Locked, because we can still access the database in read-only mode
                 return IDatabaseSource.DatabaseAvailability.Available;
             }
         }
@@ -57,15 +73,19 @@ namespace EasePassCloudPlugin
 
         public async Task<byte[]> GetDatabaseFileBytes()
         {
+            string hash = HashString(AccessToken);
             try
             {
                 var download = await HTTPHelper.GetDatabaseFileBytes(Host, AccessToken);
                 if (download != null)
                 {
                     if (SaveReadonlyOfflineCopies)
-                        ConfigurationStorage.Instance.SaveFile(HashString(AccessToken), download);
+                    {
+                        ConfigurationStorage.Instance.SaveFile(hash, download);
+                        if (Metadata != null)
+                            ConfigurationStorage.Instance.SaveString(hash, Metadata.DatabaseName);
+                    }
                     IsReadOnly = Metadata != null ? Metadata.Readonly || Metadata.Locked : true;
-                    readonlyLock = true;
                     return download;
                 }
             }
@@ -104,14 +124,18 @@ namespace EasePassCloudPlugin
 
         private void FetchMetadata()
         {
-            HTTPHelper.GetMetadata(Host, AccessToken).ContinueWith(task =>
+            try
             {
-                Metadata = task.Result;
-                LastMetadataFetch = DateTime.Now;
-                if(!readonlyLock)
-                    IsReadOnly = Metadata != null ? Metadata.Readonly || Metadata.Locked : true;
-                OnPropertyChanged?.Invoke();
-            }).Wait();
+                HTTPHelper.GetMetadata(Host, AccessToken).ContinueWith(task =>
+                {
+                    Metadata = task.Result;
+                    LastMetadataFetch = DateTime.Now;
+                    if (!readonlyLock)
+                        IsReadOnly = Metadata != null ? Metadata.Readonly || Metadata.Locked : true;
+                    OnPropertyChanged?.Invoke();
+                });
+            }
+            catch { }
         }
 
         private string HashString(string input)

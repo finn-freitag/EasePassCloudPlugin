@@ -61,7 +61,11 @@ namespace EasePassCloudPlugin
             var config = EPCloudConfigLoader.LoadConfigurations();
             if (config == null)
                 return;
-            Process.Start((config.Host.StartsWith("http") ? "" : "http://") + config.Host);
+            Process.Start(new ProcessStartInfo()
+            {
+                FileName = (config.Host.StartsWith("http") ? "" : "http://") + config.Host,
+                UseShellExecute = true
+            });
         }
     }
 }
