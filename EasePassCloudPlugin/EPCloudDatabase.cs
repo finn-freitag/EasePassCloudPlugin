@@ -28,7 +28,7 @@ namespace EasePassCloudPlugin
             }
         }
 
-        public string SourceDescription => Host + "/api/databases/" + HashString(DatabaseName);
+        public string SourceDescription => Host + "/api/databases/" + HashString(AccessToken);
 
         public bool IsReadOnly { get; private set; }
         private bool readonlyLock = false;

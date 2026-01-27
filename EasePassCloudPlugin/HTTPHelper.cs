@@ -34,6 +34,7 @@ namespace EasePassCloudPlugin
                 {
                     DatabaseName = dataProp.GetProperty("DatabaseName").GetString() ?? string.Empty,
                     LastModified = dataProp.GetProperty("LastModified").GetString() ?? string.Empty,
+                    DatabaseID = dataProp.GetProperty("DatabaseID").GetString() ?? string.Empty,
                     Locked = dataProp.GetProperty("Locked").GetBoolean(),
                     Readonly = dataProp.GetProperty("Readonly").GetBoolean()
                 };
