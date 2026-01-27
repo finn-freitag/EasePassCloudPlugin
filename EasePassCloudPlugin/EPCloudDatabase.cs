@@ -32,6 +32,7 @@ namespace EasePassCloudPlugin
 
         public bool IsReadOnly { get; private set; }
         private bool readonlyLock = false;
+        private bool loggedIn = false;
 
         public IDatabaseSource.DatabaseAvailability Availability
         {
@@ -85,7 +86,7 @@ namespace EasePassCloudPlugin
                         if (Metadata != null)
                             ConfigurationStorage.Instance.SaveString(hash, Metadata.DatabaseName);
                     }
-                    IsReadOnly = Metadata != null ? Metadata.Readonly || Metadata.Locked : true;
+                    IsReadOnly = Metadata != null ? Metadata.Readonly || (Metadata.Locked && !loggedIn) : true;
                     return download;
                 }
             }
@@ -113,13 +114,19 @@ namespace EasePassCloudPlugin
 
         public void Login()
         {
+            if(Metadata.Locked)
+                return;
+            loggedIn = true;
             HTTPHelper.SetIsLocked(Host, AccessToken, true);
         }
 
         public void Logout()
         {
-            HTTPHelper.SetIsLocked(Host, AccessToken, false);
+            if (loggedIn)
+                HTTPHelper.SetIsLocked(Host, AccessToken, false);
+            loggedIn = false;
             readonlyLock = false;
+            FetchMetadata();
         }
 
         private void FetchMetadata()
@@ -131,7 +138,7 @@ namespace EasePassCloudPlugin
                     Metadata = task.Result;
                     LastMetadataFetch = DateTime.Now;
                     if (!readonlyLock)
-                        IsReadOnly = Metadata != null ? Metadata.Readonly || Metadata.Locked : true;
+                        IsReadOnly = Metadata != null ? Metadata.Readonly || (Metadata.Locked && !loggedIn) : true;
                     OnPropertyChanged?.Invoke();
                 });
             }

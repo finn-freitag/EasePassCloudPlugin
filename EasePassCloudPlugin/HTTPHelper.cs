@@ -73,13 +73,13 @@ namespace EasePassCloudPlugin
             return response.IsSuccessStatusCode;
         }
 
-        public static Task SetIsLocked(string host, string accesstoken, bool isLocked)
+        public static async Task SetIsLocked(string host, string accesstoken, bool isLocked)
         {
             using var client = new HttpClient();
             var request = new HttpRequestMessage(HttpMethod.Get, host + "/pluginapi/userLock");
             request.Headers.Add("accesstoken", accesstoken);
             request.Headers.Add("lockstatus", isLocked ? "lock" : "unlock");
-            return client.SendAsync(request);
+            await client.SendAsync(request);
         }
     }
 }
