@@ -41,7 +41,7 @@ namespace EasePassCloudPlugin
                 byte[] file = ConfigurationStorage.Instance.LoadFile(HashString(AccessToken));
                 if (Metadata == null)
                 {
-                    if (file != null)
+                    if (file != null && SaveReadonlyOfflineCopies)
                         return IDatabaseSource.DatabaseAvailability.Available;
                     return IDatabaseSource.DatabaseAvailability.Unavailable;
                 }
@@ -114,7 +114,7 @@ namespace EasePassCloudPlugin
 
         public void Login()
         {
-            if(Metadata.Locked)
+            if(Metadata != null && Metadata.Locked)
                 return;
             loggedIn = true;
             HTTPHelper.SetIsLocked(Host, AccessToken, true);
