@@ -43,6 +43,7 @@ namespace EasePassCloudPlugin
                 if (config == null)
                     return false;
                 EPCloudConfigLoader.SaveConfigurations(config);
+                Logger.Log("Saved config json");
                 return true;
             }
             catch

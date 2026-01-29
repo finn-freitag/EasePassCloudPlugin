@@ -70,6 +70,7 @@ namespace EasePassCloudPlugin
             metadataRefreshTimer.Elapsed += (sender, e) => FetchMetadata();
             metadataRefreshTimer.Start();
             FetchMetadata();
+            Logger.Log("Databasesource created.");
         }
 
         public async Task<byte[]> GetDatabaseFileBytes()
@@ -87,15 +88,17 @@ namespace EasePassCloudPlugin
                             ConfigurationStorage.Instance.SaveString(hash, Metadata.DatabaseName);
                     }
                     IsReadOnly = Metadata != null ? Metadata.Readonly || (Metadata.Locked && !loggedIn) : true;
+                    Logger.Log("GetDatabaseFileBytes" + (IsReadOnly ? ", readonly" : ""));
                     return download;
                 }
             }
-            catch { }
+            catch (Exception e) { Logger.LogException(e); }
             if (!SaveReadonlyOfflineCopies)
                 return null;
             byte[] file = ConfigurationStorage.Instance.LoadFile(HashString(AccessToken));
             IsReadOnly = true;
             readonlyLock = true;
+            Logger.Log("GetDatabaseFileBytes, offline clone" + (IsReadOnly ? ", readonly" : ""));
             return file;
         }
 
@@ -106,9 +109,11 @@ namespace EasePassCloudPlugin
             try
             {
                 ConfigurationStorage.Instance.SaveFile(HashString(AccessToken), databaseFileBytes);
-                return await HTTPHelper.UploadFileAsFormdata(Host, AccessToken, databaseFileBytes);
+                bool res = await HTTPHelper.UploadFileAsFormdata(Host, AccessToken, databaseFileBytes);
+                Logger.Log("SaveDatabaseFileBytes, " + res);
+                return res;
             }
-            catch { }
+            catch (Exception e) { Logger.LogException(e); }
             return false;
         }
 
@@ -118,6 +123,7 @@ namespace EasePassCloudPlugin
                 return;
             loggedIn = true;
             HTTPHelper.SetIsLocked(Host, AccessToken, true);
+            Logger.Log("Locked database for other users.");
         }
 
         public void Logout()
@@ -127,6 +133,7 @@ namespace EasePassCloudPlugin
             loggedIn = false;
             readonlyLock = false;
             FetchMetadata();
+            Logger.Log("Logout");
         }
 
         private void FetchMetadata()
@@ -140,9 +147,10 @@ namespace EasePassCloudPlugin
                     if (!readonlyLock)
                         IsReadOnly = Metadata != null ? Metadata.Readonly || (Metadata.Locked && !loggedIn) : true;
                     OnPropertyChanged?.Invoke();
+                    Logger.Log("Fetched metadata");
                 });
             }
-            catch { }
+            catch (Exception e) { Logger.LogException(e); }
         }
 
         private string HashString(string input)
