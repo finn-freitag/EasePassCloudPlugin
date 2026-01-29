@@ -17,16 +17,26 @@ namespace EasePassCloudPlugin
             IncludeFields = true
         };
 
-        public static EPCloudConfig? LoadConfigurations()
+        public static EPCloudConfig[] LoadConfigurations()
         {
             string data = ConfigurationStorage.Instance.LoadString("config");
             if (string.IsNullOrEmpty(data))
-                return null;
+                return [];
+
             string json = Obfuscator.Decrypt(data);
-            return JsonSerializer.Deserialize<EPCloudConfig>(json, options);
+            if (json.TrimStart().StartsWith("["))
+                return JsonSerializer.Deserialize<EPCloudConfig[]>(json, options) ?? [];
+            else
+            {
+                var singleObj = JsonSerializer.Deserialize<EPCloudConfig>(json, options);
+                if (singleObj != null)
+                    return [singleObj];
+                else
+                    return [];
+            }
         }
 
-        public static void SaveConfigurations(EPCloudConfig config)
+        public static void SaveConfigurations(EPCloudConfig[] config)
         {
             string json = JsonSerializer.Serialize(config, options);
             string data = Obfuscator.Encrypt(json);

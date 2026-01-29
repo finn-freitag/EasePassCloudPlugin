@@ -12,23 +12,24 @@ namespace EasePassCloudPlugin
 
         public Uri SourceIcon => Icon.GetIconUri();
 
-        public bool ExternalConfigEditingSupport => EPCloudConfigLoader.LoadConfigurations() != null;
+        public bool ExternalConfigEditingSupport => EPCloudConfigLoader.LoadConfigurations().Length == 1;
 
         public IDatabaseSource[] GetDatabases()
         {
-            var config = EPCloudConfigLoader.LoadConfigurations();
-            if (config == null)
-                return [];
+            List<IDatabaseSource> sources = [];
 
-            return config.AccessTokens
-                .Select(token => new EPCloudDatabase(config.Host, token, config.SaveReadonlyOfflineCopies))
-                .ToArray();
+            foreach (var config in EPCloudConfigLoader.LoadConfigurations())
+            {
+                sources.AddRange(config.AccessTokens.Select(token => new EPCloudDatabase(config.Host, token, config.SaveReadonlyOfflineCopies)));
+            }
+
+            return sources.ToArray();
         }
 
         public string GetConfigurationJSON()
         {
             var config = EPCloudConfigLoader.LoadConfigurations();
-            if (config == null)
+            if (config.Length == 0)
                 return string.Empty;
             return System.Text.Json.JsonSerializer.Serialize(config, EPCloudConfigLoader.options);
         }
@@ -39,15 +40,28 @@ namespace EasePassCloudPlugin
                 return false;
             try
             {
-                var config = System.Text.Json.JsonSerializer.Deserialize<EPCloudConfig>(configJson);
-                if (config == null)
-                    return false;
-                EPCloudConfigLoader.SaveConfigurations(config);
-                Logger.Log("Saved config json");
-                return true;
+                if(configJson.TrimStart().StartsWith("["))
+                {
+                    var configs = System.Text.Json.JsonSerializer.Deserialize<EPCloudConfig[]>(configJson);
+                    if (configs == null)
+                        return false;
+                    EPCloudConfigLoader.SaveConfigurations(configs);
+                    Logger.Log("Saved config json array");
+                    return true;
+                }
+                else
+                {
+                    var config = System.Text.Json.JsonSerializer.Deserialize<EPCloudConfig>(configJson);
+                    if (config == null)
+                        return false;
+                    EPCloudConfigLoader.SaveConfigurations([config]);
+                    Logger.Log("Saved config json");
+                    return true;
+                }
             }
-            catch
+            catch (Exception e)
             {
+                Logger.LogException(e);
                 return false;
             }
         }
@@ -60,11 +74,11 @@ namespace EasePassCloudPlugin
         public void OpenExternalConfigEditor()
         {
             var config = EPCloudConfigLoader.LoadConfigurations();
-            if (config == null)
+            if (config.Length != 1)
                 return;
             Process.Start(new ProcessStartInfo()
             {
-                FileName = (config.Host.StartsWith("http") ? "" : "http://") + config.Host,
+                FileName = (config[0].Host.StartsWith("http") ? "" : "http://") + config[0].Host,
                 UseShellExecute = true
             });
         }
